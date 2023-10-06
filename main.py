@@ -12,7 +12,6 @@ from speckle_automate import (
 
 from flatten import flatten_base
 
-
 class FunctionInputs(AutomateBase):
     """These are function author defined values.
 
