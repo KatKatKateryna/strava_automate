@@ -1,48 +1,36 @@
+import json  # noqa: D100
 
-def run():
-    
-    import requests
-    base_url = "https://api.open-elevation.com/api/v1/lookup" #"http://overpass-api.de/api/interpreter"
+import requests
+from specklepy.objects.geometry import Mesh
 
-    all_locations = [(10,10),(20,20),(41.161758,-8.583933)]
-    loc_str = ""
-    for i, l in enumerate(all_locations):
-        if i==0:
-            loc_str += f"?locations={l[0]},{l[1]}"
-        else:
-            loc_str += f"|{l[0]},{l[1]}"
-    overpass_url = base_url + loc_str
-    print(overpass_url)
-    response = requests.get(overpass_url)
+
+def get_elevation_from_points(all_locations: list[tuple[float, float]]) -> list[dict]:
+    """Get list of elevations for each point in the list."""
+    base_url = "https://api.open-elevation.com/api/v1/lookup"
+    locations = [
+        {"latitude": location[0], "longitude": location[1]}
+        for location in all_locations
+    ]
+    payload = {"locations": locations}
+
+    response = requests.post(base_url, data=json.dumps(payload))
     data = response.json()
-    elevations = [ r['elevation'] for r in data['results']]
-    print(elevations)
+    return data["results"]
 
-    #######################################
-    payload = '''{
-	"locations":
-	[
-		{
-			"latitude": 10,
-			"longitude": 10
-		},
-		{
-			"latitude":20,
-			"longitude": 20
-		},
-		{
-			"latitude":41.161758,
-			"longitude":-8.583933
-		}
-	]
 
-    }''' 
-    r = requests.post(base_url, data = payload)
-    data = response.json()
-    print(data)
-    elevations = [ r['elevation'] for r in data['results']]
-    print(elevations)
-    return
+def construct_speckle_mesh(points_3d: list[dict]) -> Mesh:
+    """Create a Speckle Mesh using a list of 3d points."""
+    elevations = [r["elevation"] for r in points_3d]
+    mesh = Mesh(points=[], faces=[], colors=[])
+    return mesh
 
-run()
-exit()
+
+def get_terrain_mesh_from_route():
+    """Get Speckle Mesh surrounding the route."""
+    all_locations = [(10, 10), (20, 20), (41.161758, -8.583933)]
+    points_3d = get_elevation_from_points(all_locations)
+    mesh = construct_speckle_mesh(points_3d)
+    return mesh
+
+
+get_terrain_mesh_from_route()
