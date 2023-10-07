@@ -33,29 +33,28 @@ def get_elevation_from_points(all_locations: list[list[float, float]]) -> list[d
         ]
         payload = {"locations": locations}
 
-        response = requests.post(base_url, data=json.dumps(payload))
-        # print(response)
-        data = response.json()
-        all_data.extend(data["results"])
+        for _ in range(5):
+            response = requests.post(base_url, data=json.dumps(payload))
+            if response.status_code == 200:
+                data = response.json()
+                all_data.extend(data["results"])
+                break
+
     return all_data
 
 
 def get_speckle_mesh_from_2d_route(all_locations_2d: list) -> Base:
     """Create Speckle 3d mesh from 2d route data."""
-    all_colors = get_colors_of_points_from_tiles(all_locations_2d)
-    # print(all_colors[:10])
-
     crs_to_use = createCRS(all_locations_2d[0][0], all_locations_2d[0][1])
     grid_points: list[list] = []
-    radius = 100
+    radius = 50
     round_koef = 100000
-    step_no_units = 100
+    step_no_units = 10
     # split all route into zones to query elevation
     for i, _ in enumerate(all_locations_2d):
         koeff = 5
         set_of_point_float_lists = get_subset_from_list(all_locations_2d, i, koeff)
-        # print("SUBSET OF ROUTE POINTS")
-        # print(set_of_point_float_lists)
+
         if set_of_point_float_lists is None:
             break
         middle_point = set_of_point_float_lists[
@@ -63,9 +62,6 @@ def get_speckle_mesh_from_2d_route(all_locations_2d: list) -> Base:
         ]
         y0, x0, y1, x1 = getBbox(middle_point[0], middle_point[1], radius)
         # print(y0, x0, y1, x1)
-
-        # print(math.floor(x0 * round_koef))
-        # print(math.ceil(x1 * round_koef))
 
         for k in range(
             math.floor(x0 * round_koef), math.ceil(x1 * round_koef), step_no_units
@@ -79,6 +75,7 @@ def get_speckle_mesh_from_2d_route(all_locations_2d: list) -> Base:
     grid_points_3d = get_elevation_from_points(grid_points)
     print("GRID POINTS")
     print(grid_points_3d[:10])
+    all_colors = get_colors_of_points_from_tiles(grid_points_3d)
 
     # create meshes
     meshes = []
@@ -88,9 +85,9 @@ def get_speckle_mesh_from_2d_route(all_locations_2d: list) -> Base:
         # reproject points to metric CRS
         x, y = reprojectToCrs(p["latitude"], p["longitude"], "EPSG:4326", crs_to_use)
         reprojected_points.append((x, y, p["elevation"]))
-    # print(reprojected_points)
 
     triangles = delaunay_triangles(MultiPoint(reprojected_points)).geoms
+    print("TRIANGLES")
     print(triangles[:5])
     for tr in triangles:
         linearring = tr.exterior
@@ -109,10 +106,9 @@ def get_speckle_mesh_from_2d_route(all_locations_2d: list) -> Base:
                     valid_triangle = False
             vertices.extend([c[0], c[1], c[2]])
             new_color = (255 << 24) + (150 << 16) + (150 << 8) + 150
-            for k, loc in enumerate(all_locations_2d):
-                if loc == [c[0], c[1]]:
+            for k, loc in enumerate(reprojected_points):
+                if [loc[0], loc[1]] == [c[0], c[1]]:
                     new_color = all_colors[k]
-                    print(new_color)
                     break
             colors.append(new_color)
 

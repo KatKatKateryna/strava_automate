@@ -130,6 +130,6 @@ version_id = client.commit.create(
     stream_id=project_id,
     object_id=root_object_id,
     branch_name="strava",
-    message="route and elevation",
+    message="route and colored elevation",
     source_application="SpeckleAutomate",
 )

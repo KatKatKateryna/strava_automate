@@ -4,6 +4,7 @@ import math
 import shutil
 from copy import copy
 from io import BytesIO
+from statistics import mean
 from urllib.request import urlopen
 import tempfile
 from datetime import datetime
@@ -24,22 +25,24 @@ from specklepy.objects.geometry import Line, Mesh, Point, Polyline
 from utils.utils_pyproj import createCRS, reprojectToCrs
 
 
-def get_colors_of_points_from_tiles(all_locations_2d: list[list]):
+def get_colors_of_points_from_tiles(all_locations: list[dict]):
     all_colors = []
-    zoom = 12
+    zoom = 18
+    lat_extent_degrees = 85.0511
     degrees_in_tile_x = 360 / math.pow(2, zoom)
-    degrees_in_tile_y = 2 * 85.0511 / math.pow(2, zoom)
+    degrees_in_tile_y = 2 * lat_extent_degrees / math.pow(2, zoom)
     temp_folder = "strava_automate" + str(datetime.now().timestamp())
     temp_folder_path = os.path.join(tempfile.gettempdir(), temp_folder)
     folderExist = os.path.exists(temp_folder_path)
     if not folderExist:
         os.makedirs(temp_folder_path)
 
-    for location in all_locations_2d:
-        lat = location[0]
-        lon = location[1]
+    for location in all_locations:
+        lat = location["latitude"]
+        lon = location["longitude"]
         x = int((lon + 180) / degrees_in_tile_x)
-        y = int((lat + 85.0511) / degrees_in_tile_y)
+        y_remapped_value = lat_extent_degrees - lat / 180 * lat_extent_degrees
+        y = int(y_remapped_value / degrees_in_tile_y)
         file_name = f"{zoom}_{x}_{y}"
         file_path = os.path.join(temp_folder_path, f"{file_name}.png")
         fileExists = os.path.isfile(file_path)
@@ -55,26 +58,44 @@ def get_colors_of_points_from_tiles(all_locations_2d: list[list]):
 
         # find pixel index in the image
         remainder_x_degrees = (lon + 180) % degrees_in_tile_x
-        remainder_y_degrees = (lat + 180) % degrees_in_tile_y
-        pixel_x_index = int(remainder_x_degrees / degrees_in_tile_x * 256)
-        pixel_y_index = int(remainder_y_degrees / degrees_in_tile_y * 256)
-        pixel_index = pixel_y_index * 256 + pixel_x_index
-        # print(pixel_x_index, pixel_y_index)
+        remainder_y_degrees = y_remapped_value % degrees_in_tile_y
 
         # get pixel color
         reader = png.Reader(filename=file_path)
-        w, h, pixels, metadata = reader.read_flat()
+        w, h, pixels, metadata = reader.read_flat()  # w = h = 256pixels each side
         palette = metadata["palette"]
 
-        color_tuple = palette[pixels[pixel_index]]
-        print(color_tuple)
+        # get average of surrounding pixels
+        local_colors_list = []
+        offset = 3
+        for r in range(offset * 2 + 1):
+            coeff = r - offset
+            pixel_x_index = int(remainder_x_degrees / degrees_in_tile_x * w)
+            if 0 <= pixel_x_index + coeff < w:
+                pixel_x_index += coeff
+            pixel_y_index = w - 1 - int(remainder_y_degrees / degrees_in_tile_y * w)
+            if 0 <= pixel_y_index + coeff < w:
+                pixel_y_index += coeff
+            pixel_index = pixel_y_index * w + pixel_x_index
+            # try:
+            color_tuple = palette[pixels[pixel_index]]
+            # except IndexError as ie:
+            #    print(pixel_y_index)
+            #    raise ie
+            # print(f"{pixel_index}_{color_tuple}")
+            local_colors_list.append(color_tuple)
+
+        average_color_tuple = (
+            int(mean([c[0] for c in local_colors_list])),
+            int(mean([c[1] for c in local_colors_list])),
+            int(mean([c[2] for c in local_colors_list])),
+        )
         color = (
             (255 << 24)
-            + (color_tuple[0] << 16)
-            + (color_tuple[1] << 8)
-            + color_tuple[2]
+            + (average_color_tuple[0] << 16)
+            + (average_color_tuple[1] << 8)
+            + average_color_tuple[2]
         )
-
         all_colors.append(color)
 
     # shutil.rmtree(temp_folder_path)

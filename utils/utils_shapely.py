@@ -56,12 +56,12 @@ def road_buffer(poly: Polyline, value: float) -> Base:
                     )
                     all_distances_points.update({distance: original_pt})
                     if distance <= 1.5 * value:
-                        vertices.extend(c + [original_pt.z + 0.2])
+                        vertices.extend(c + [original_pt.z + 0.5])
                         z_found = True
                         break
                 if z_found is False:
                     min_distance = min(all_distances_points.keys())
-                    vertices.extend(c + [all_distances_points[min_distance].z + 0.2])
+                    vertices.extend(c + [all_distances_points[min_distance].z + 0.5])
 
                 # vertices.extend(c + [0])
                 colors.append(color)
