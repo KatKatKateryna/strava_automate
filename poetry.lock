@@ -733,6 +733,17 @@ files = [
 typing-extensions = ">=4.6.0,<4.7.0 || >4.7.0"
 
 [[package]]
+name = "pypng"
+version = "0.20220715.0"
+description = "Pure Python library for saving and loading PNG images"
+optional = false
+python-versions = "*"
+files = [
+    {file = "pypng-0.20220715.0-py3-none-any.whl", hash = "sha256:4a43e969b8f5aaafb2a415536c1a8ec7e341cd6a3f957fd5b5f32a4cfeed902c"},
+    {file = "pypng-0.20220715.0.tar.gz", hash = "sha256:739c433ba96f078315de54c0db975aee537cbc3e1d0ae4ed9aab0ca1e427e2c1"},
+]
+
+[[package]]
 name = "pyproj"
 version = "3.6.1"
 description = "Python interface to PROJ (cartographic projections and coordinate transformations library)"
@@ -1297,4 +1308,4 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.11"
-content-hash = "f4117648da77ac3422961c949333dc69b3b9fa69e5fe41a504181213af34376d"
+content-hash = "d2d06c6485d9fe12fa90dba68cc818ec61359c110bea95819f894ea6d4d9b50a"

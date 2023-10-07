@@ -11,20 +11,16 @@ from specklepy.api.credentials import get_local_accounts
 
 import requests
 import urllib3
-from utils.utils_osm import roadBuffer
+from utils.utils_elevation import (
+    get_elevation_from_points,
+    get_speckle_mesh_from_2d_route,
+)
+from utils.utils_shapely import road_buffer
 
 from utils.utils_pyproj import createCRS, reprojectToCrs
 
 
-def get_strava_points():
-    # https://www.markhneedham.com/blog/2020/12/15/strava-authorization-error-missing-read-permission/
-    client_id = 
-    client_secret = 
-    activity_id = 
-    code = 
-    # 1. Go to https://www.strava.com/settings/api and create a new app
-    # 2. https://www.strava.com/oauth/authorize?client_id=paste_your_client_id&redirect_uri=http://localhost&response_type=code&scope=activity:read_all
-
+def get_strava_points(client_id: str, client_secret: str, activity_id: int, code: str):
     # response = requests.get(
     #    f"https://www.strava.com/oauth/authorize?client_id={client_id}&redirect_uri=http://localhost&response_type=code&scope=activity:read_all"
     # )
@@ -64,20 +60,6 @@ def get_strava_points():
     raise Exception("No data found")
 
 
-def get_elevation_from_points(all_locations: list[list[float, float]]) -> list[dict]:
-    """Get list of elevations for each point in the list."""
-    base_url = "https://api.open-elevation.com/api/v1/lookup"
-    locations = [
-        {"latitude": location[0], "longitude": location[1]}
-        for location in all_locations
-    ]
-    payload = {"locations": locations}
-
-    response = requests.post(base_url, data=json.dumps(payload))
-    data = response.json()
-    return data["results"]
-
-
 def construct_speckle_mesh(points_3d: list[dict]) -> Mesh:
     """Create a Speckle Mesh using a list of 3d points."""
     elevations = [r["elevation"] for r in points_3d]
@@ -85,37 +67,50 @@ def construct_speckle_mesh(points_3d: list[dict]) -> Mesh:
     return mesh
 
 
-def get_terrain_mesh_from_route():
+def get_3d_polyline_from_route(
+    all_locations_2d: list,
+    client_id: str,
+    client_secret: str,
+    activity_id: int,
+    code: str,
+):
     """Get Speckle Mesh surrounding the route."""
     # all_locations = [(10, 10), (20, 20), (41.161758, -8.583933)]
-    all_locations_2d = get_strava_points()
-    print(all_locations_2d)
-    points_3d = get_elevation_from_points(all_locations_2d)
-    mesh = construct_speckle_mesh(points_3d)
-    return mesh
 
-
-def get_3d_polyline_from_route():
-    """Get Speckle Mesh surrounding the route."""
-    # all_locations = [(10, 10), (20, 20), (41.161758, -8.583933)]
-    all_locations_2d = get_strava_points()
     print(all_locations_2d[:10])
     points_3d = get_elevation_from_points(all_locations_2d)
     print(points_3d[:10])
 
     crs_to_use = createCRS(all_locations_2d[0][0], all_locations_2d[0][1])
+
+    # reproject points to metric CRS
     speckle_points = []
     for p in points_3d:
         x, y = reprojectToCrs(p["latitude"], p["longitude"], "EPSG:4326", crs_to_use)
         speckle_points.append(Point(x=x, y=y, z=p["elevation"], units="m"))
-    print(speckle_points[:10])
+    # print(speckle_points[:10])
     polyline = Polyline.from_points(speckle_points)
     return polyline
 
 
-polyline = get_3d_polyline_from_route()
-road_mesh = roadBuffer(polyline, 1)
+################################
+# https://www.markhneedham.com/blog/2020/12/15/strava-authorization-error-missing-read-permission/
+client_id = 
+client_secret = 
+activity_id = 
+code = 
+# 1. Go to https://www.strava.com/settings/api and create a new app
+# 2. https://www.strava.com/oauth/authorize?client_id=paste_your_client_id&redirect_uri=http://localhost&response_type=code&scope=activity:read_all
 
+all_locations_2d = get_strava_points(client_id, client_secret, activity_id, code)
+polyline = get_3d_polyline_from_route(
+    all_locations_2d, client_id, client_secret, activity_id, code
+)
+road_mesh = road_buffer(polyline, 1)
+elevation_mesh = get_speckle_mesh_from_2d_route(all_locations_2d)
+
+
+###############################################
 model_id = "ac5448ded3"
 project_id = "4ea6a03993"
 
@@ -126,7 +121,7 @@ client.authenticate_with_token(account.token)
 server_transport = ServerTransport(project_id, client)
 
 root_object_id = send(
-    Collection(elements=[road_mesh]),
+    Collection(elements=[road_mesh, elevation_mesh]),
     [server_transport],
     use_default_cache=False,
 )
@@ -135,6 +130,6 @@ version_id = client.commit.create(
     stream_id=project_id,
     object_id=root_object_id,
     branch_name="strava",
-    message="route as mesh",
+    message="route and elevation",
     source_application="SpeckleAutomate",
 )

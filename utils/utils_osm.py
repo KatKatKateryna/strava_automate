@@ -1,78 +1,84 @@
-from copy import copy
-import math
-from typing import List
-
-# from utils.utils_network import colorSegments
-from utils.utils_pyproj import createCRS, reprojectToCrs
-from specklepy.objects import Base
-from specklepy.objects.geometry import Polyline, Point, Mesh, Line
+import array
 import json
+import math
+import shutil
+from copy import copy
+from io import BytesIO
+from urllib.request import urlopen
+import tempfile
+from datetime import datetime
+
+import png
+import requests
+import os
 from shapely import (
+    LineString,
     buffer,
     offset_curve,
     to_geojson,
-    LineString,
 )
+from specklepy.objects import Base
+from specklepy.objects.geometry import Line, Mesh, Point, Polyline
+
+# from utils.utils_network import colorSegments
+from utils.utils_pyproj import createCRS, reprojectToCrs
 
 
-def roadBuffer(poly: Polyline, value: float) -> Base:
-    """Create Speckle Mesh from Speckle Polyline and offset value."""
-    if value is None:
-        return
-    meshes = []
-    polyline_points = poly.as_points()
-    for i, _ in enumerate(polyline_points):
-        koeff = 10
-        count = i * koeff
-        remainder = len(polyline_points) - count
-        if remainder >= koeff:
-            remainder = koeff + 1
-        if remainder <= 1:
-            break
-        set_of_points = polyline_points[count : count + remainder]
-        # print(set_of_points)
+def get_colors_of_points_from_tiles(all_locations_2d: list[list]):
+    all_colors = []
+    zoom = 12
+    degrees_in_tile_x = 360 / math.pow(2, zoom)
+    degrees_in_tile_y = 2 * 85.0511 / math.pow(2, zoom)
+    temp_folder = "strava_automate" + str(datetime.now().timestamp())
+    temp_folder_path = os.path.join(tempfile.gettempdir(), temp_folder)
+    folderExist = os.path.exists(temp_folder_path)
+    if not folderExist:
+        os.makedirs(temp_folder_path)
 
-        line = LineString([(p.x, p.y, p.z) for p in set_of_points])
-        area = to_geojson(buffer(line, value, cap_style="square"))  # POLYGON to geojson
-        area = json.loads(area)
-        vertices = []
-        colors = []
-        vetricesTuples = []
+    for location in all_locations_2d:
+        lat = location[0]
+        lon = location[1]
+        x = int((lon + 180) / degrees_in_tile_x)
+        y = int((lat + 85.0511) / degrees_in_tile_y)
+        file_name = f"{zoom}_{x}_{y}"
+        file_path = os.path.join(temp_folder_path, f"{file_name}.png")
+        fileExists = os.path.isfile(file_path)
+        if not fileExists:
+            url = f"https://tile.openstreetmap.org/{zoom}/{int(x)}/{int(y)}.png"  #'https://tile.openstreetmap.org/3/4/2.png'
 
-        color = (255 << 24) + (155 << 16) + (50 << 8) + 50  # argb
-        # print(area["coordinates"][0])
-        for k, c in enumerate(area["coordinates"][0]):
-            # print(c)
-            if k != len(area["coordinates"][0]) - 1:
-                # get z-value from the closest polyline point
-                z_found = False
-                all_distances_points: dict = {}
-                for original_pt in set_of_points:
-                    distance = math.sqrt(
-                        math.pow(c[0] - original_pt.x, 2)
-                        + math.pow(c[1] - original_pt.y, 2)
-                    )
-                    all_distances_points.update({distance: original_pt})
-                    if distance <= 1.3 * value:
-                        vertices.extend(c + [original_pt.z + 0.2])
-                        z_found = True
-                        break
-                if z_found is False:
-                    print(all_distances_points)
-                    min_distance = min(all_distances_points.keys())
-                    vertices.extend(c + [all_distances_points[min_distance].z + 0.2])
+            headers = {"User-Agent": "Some app in testing process"}
+            r = requests.get(url, headers=headers, stream=True)
+            if r.status_code == 200:
+                with open(file_path, "wb") as f:
+                    r.raw.decode_content = True
+                    shutil.copyfileobj(r.raw, f)
 
-                # vertices.extend(c + [0])
-                colors.append(color)
+        # find pixel index in the image
+        remainder_x_degrees = (lon + 180) % degrees_in_tile_x
+        remainder_y_degrees = (lat + 180) % degrees_in_tile_y
+        pixel_x_index = int(remainder_x_degrees / degrees_in_tile_x * 256)
+        pixel_y_index = int(remainder_y_degrees / degrees_in_tile_y * 256)
+        pixel_index = pixel_y_index * 256 + pixel_x_index
+        # print(pixel_x_index, pixel_y_index)
 
-        face_list = list(range(len(colors)))
-        mesh = Mesh.create(
-            vertices=vertices, colors=colors, faces=[len(colors)] + face_list
+        # get pixel color
+        reader = png.Reader(filename=file_path)
+        w, h, pixels, metadata = reader.read_flat()
+        palette = metadata["palette"]
+
+        color_tuple = palette[pixels[pixel_index]]
+        print(color_tuple)
+        color = (
+            (255 << 24)
+            + (color_tuple[0] << 16)
+            + (color_tuple[1] << 8)
+            + color_tuple[2]
         )
-        mesh.units = "m"
-        meshes.append(mesh)
 
-    return Base(units="m", displayValue=meshes, width=2 * value)
+        all_colors.append(color)
+
+    # shutil.rmtree(temp_folder_path)
+    return all_colors
 
 
 def getBuildings(lat: float, lon: float, r: float):
@@ -272,7 +278,7 @@ def getBuildings(lat: float, lon: float, r: float):
     return objectGroup
 
 
-def extrudeBuildings(coords: List[dict], height: float) -> Mesh:
+def extrudeBuildings(coords: list[dict], height: float) -> Mesh:
     from specklepy.objects.geometry import Mesh
 
     vertices = []
@@ -630,7 +636,7 @@ def splitWaysByIntersection(ways: list, tags: list):
     return splitWays, splitTags
 
 
-def joinRoads(coords: List[dict], closed: bool, height: float):
+def joinRoads(coords: list[dict], closed: bool, height: float):
     from specklepy.objects.geometry import Polyline, Point
 
     points = []
