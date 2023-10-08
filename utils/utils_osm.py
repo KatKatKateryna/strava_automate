@@ -13,7 +13,7 @@ from specklepy.objects.geometry import Line, Mesh
 
 from utils.utils_pyproj import createCRS, reprojectToCrs
 
-COLOR_BLD = (255 << 24) + (230 << 16) + (230 << 8) + 230  # argb
+COLOR_BLD = (255 << 24) + (240 << 16) + (240 << 8) + 240  # argb
 
 
 def get_colors_of_points_from_tiles(all_locations: list[list]) -> list[int]:
@@ -84,9 +84,9 @@ def get_colors_of_points_from_tiles(all_locations: list[list]) -> list[int]:
         # increase contrast
         factor = 5
         average_color_tuple = (
-            int(average_color_tuple[0] / factor) * factor,
-            int(average_color_tuple[1] / factor) * factor,
-            int(average_color_tuple[2] / factor) * factor,
+            int(average_color_tuple[0] / factor / 1.2) * factor,
+            int(average_color_tuple[1] / factor / 1.2) * factor,
+            int(average_color_tuple[2] / factor / 1.2) * factor,
         )
         color = (
             (255 << 24)

@@ -52,7 +52,7 @@ def get_buildings_mesh_from_2d_route(all_locations_2d: list) -> Base:
     radius = 100
     round_koef = 100000
     step_no_units = 50
-    koeff = 50
+    koeff = 30
     # split all route into zones to query elevation
     for i, _ in enumerate(all_locations_2d):
         set_of_point_float_lists = get_subset_from_list(all_locations_2d, i, koeff)
@@ -76,8 +76,8 @@ def get_speckle_mesh_from_2d_route(all_locations_2d: list) -> Base:
     grid_points: list[list] = []
     radius = 100
     round_koef = 100000
-    step_no_units = 50
-    koeff = 50
+    step_no_units = 30
+    koeff = 30
     # split all route into zones to query elevation
     for i, _ in enumerate(all_locations_2d):
         set_of_point_float_lists = get_subset_from_list(all_locations_2d, i, koeff)
