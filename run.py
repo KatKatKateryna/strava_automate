@@ -12,6 +12,7 @@ from specklepy.api.credentials import get_local_accounts
 import requests
 import urllib3
 from utils.utils_elevation import (
+    get_buildings_mesh_from_2d_route,
     get_elevation_from_points,
     get_speckle_mesh_from_2d_route,
 )
@@ -107,8 +108,10 @@ polyline = get_3d_polyline_from_route(
     all_locations_2d, client_id, client_secret, activity_id, code
 )
 road_mesh = road_buffer(polyline, 1)
-elevation_mesh = get_speckle_mesh_from_2d_route(all_locations_2d)
-
+elevation_mesh = Mesh()  # get_speckle_mesh_from_2d_route(all_locations_2d)
+print("______getting buildings:")
+buildings_meshes = get_buildings_mesh_from_2d_route(all_locations_2d)
+buildings = Collection(elements=buildings_meshes)
 
 ###############################################
 model_id = "ac5448ded3"
@@ -121,7 +124,7 @@ client.authenticate_with_token(account.token)
 server_transport = ServerTransport(project_id, client)
 
 root_object_id = send(
-    Collection(elements=[road_mesh, elevation_mesh]),
+    Collection(elements=[road_mesh, elevation_mesh, buildings]),
     [server_transport],
     use_default_cache=False,
 )
