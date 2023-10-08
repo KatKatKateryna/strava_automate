@@ -22,7 +22,7 @@ def get_colors_of_points_from_tiles(all_locations: list[list]) -> list[int]:
     lat_extent_degrees = 85.0511
     degrees_in_tile_x = 360 / math.pow(2, zoom)
     degrees_in_tile_y = 2 * lat_extent_degrees / math.pow(2, zoom)
-    temp_folder = "strava_automate" + str(datetime.now().timestamp())[:7]
+    temp_folder = "strava_automate" + str(datetime.now().timestamp())[:6]
     temp_folder_path = os.path.join(tempfile.gettempdir(), temp_folder)
     folderExist = os.path.exists(temp_folder_path)
     if not folderExist:

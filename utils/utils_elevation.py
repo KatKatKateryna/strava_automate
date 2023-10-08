@@ -74,9 +74,9 @@ def get_speckle_mesh_from_2d_route(all_locations_2d: list) -> Base:
     """Create Speckle 3d mesh from 2d route data."""
     crs_to_use = createCRS(all_locations_2d[0][0], all_locations_2d[0][1])
     grid_points: list[list] = []
-    radius = 100
+    radius = 80
     round_koef = 100000
-    step_no_units = 30
+    step_no_units = 50
     koeff = 30
     # split all route into zones to query elevation
     for i, _ in enumerate(all_locations_2d):
