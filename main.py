@@ -25,19 +25,19 @@ class FunctionInputs(AutomateBase):
 
     client_id: str = Field(
         title="Client ID",
-        description=(),
+        description=("Some description"),
     )
     client_secret: str = Field(
         title="Client Secret",
-        description=(),
+        description=("Some description"),
     )
     activity_id: int = Field(
         title="Activity ID",
-        description=(),
+        description=("Some description"),
     )
     code: str = Field(
         title="Code from the URL",
-        description=(),
+        description=("Some description"),
     )
 
 
