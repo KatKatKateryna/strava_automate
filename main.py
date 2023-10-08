@@ -68,12 +68,14 @@ def automate_function(
             )
         else:
             br_id = existing_branch.id
+        print(f"Branch_ID = {br_id}")
 
         client_id = function_inputs.client_id
         client_secret = function_inputs.client_secret
         activity_id = function_inputs.activity_id
         code = function_inputs.code
 
+        print(f"All good so far")
         commitObj = generate_all_objects(client_id, client_secret, activity_id, code)
         automate_context.create_new_version_in_project(
             commitObj, br_id, "Context from Automate"
@@ -83,7 +85,7 @@ def automate_function(
         )
         automate_context._automation_result.result_view = f"{automate_context.automation_run_data.speckle_server_url}/projects/{automate_context.automation_run_data.project_id}/models/{automate_context.automation_run_data.model_id}"
 
-        automate_context.mark_run_success("No forbidden types found.")
+        automate_context.mark_run_success("Strava route context creared")
     except Exception as ex:
         automate_context.mark_run_failed(f"Failed to create 3d context cause: {ex}")
 

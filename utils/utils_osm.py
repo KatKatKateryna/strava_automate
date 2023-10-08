@@ -84,9 +84,9 @@ def get_colors_of_points_from_tiles(all_locations: list[list]) -> list[int]:
         # increase contrast
         factor = 5
         average_color_tuple = (
-            int(average_color_tuple[0] / factor / 1.2) * factor,
-            int(average_color_tuple[1] / factor / 1.2) * factor,
-            int(average_color_tuple[2] / factor / 1.2) * factor,
+            int(average_color_tuple[0] / factor / 1.5) * factor,
+            int(average_color_tuple[1] / factor / 1.5) * factor,
+            int(average_color_tuple[2] / factor / 1.5) * factor,
         )
         color = (
             (255 << 24)
