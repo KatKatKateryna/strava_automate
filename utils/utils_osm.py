@@ -1,26 +1,16 @@
 import array
 import math
 import shutil
-from copy import copy
-from io import BytesIO
 from statistics import mean
-from urllib.request import urlopen
 import tempfile
 from datetime import datetime
 
 import png
 import requests
 import os
-from shapely import (
-    LineString,
-    buffer,
-    offset_curve,
-    to_geojson,
-)
 from specklepy.objects import Base
-from specklepy.objects.geometry import Line, Mesh, Point, Polyline
+from specklepy.objects.geometry import Line, Mesh
 
-# from utils.utils_network import colorSegments
 from utils.utils_pyproj import createCRS, reprojectToCrs
 
 COLOR_BLD = (255 << 24) + (230 << 16) + (230 << 8) + 230  # argb
@@ -321,6 +311,8 @@ def getBuildings(
                     coords_degree.append({"x": nodes[n]["lon"], "y": nodes[n]["lat"]})
                     break
 
+        if len(coords) < 3:
+            continue
         elevated_center = get_elevation_from_points(
             [
                 [

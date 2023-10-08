@@ -94,25 +94,30 @@ def get_3d_polyline_from_route(
     return polyline
 
 
-################################
-# https://www.markhneedham.com/blog/2020/12/15/strava-authorization-error-missing-read-permission/
-client_id = 
-client_secret = 
-activity_id = 
-code = 
-# 1. Go to https://www.strava.com/settings/api and create a new app
-# 2. https://www.strava.com/oauth/authorize?client_id=paste_your_client_id&redirect_uri=http://localhost&response_type=code&scope=activity:read_all
+def generate_all_objects(
+    client_id: str, client_secret: str, activity_id: int, code: str
+):
+    # https://www.markhneedham.com/blog/2020/12/15/strava-authorization-error-missing-read-permission/
 
-all_locations_2d = get_strava_points(client_id, client_secret, activity_id, code)
-polyline = get_3d_polyline_from_route(
-    all_locations_2d, client_id, client_secret, activity_id, code
-)
-road_mesh = road_buffer(polyline, 1)
-elevation_mesh = Mesh()  # get_speckle_mesh_from_2d_route(all_locations_2d)
-print("______getting buildings:")
-buildings_meshes = get_buildings_mesh_from_2d_route(all_locations_2d)
-buildings = Collection(elements=buildings_meshes)
+    # 1. Go to https://www.strava.com/settings/api and create a new app
+    # 2. https://www.strava.com/oauth/authorize?client_id=paste_your_client_id&redirect_uri=http://localhost&response_type=code&scope=activity:read_all
 
+    all_locations_2d = get_strava_points(client_id, client_secret, activity_id, code)
+    polyline = get_3d_polyline_from_route(
+        all_locations_2d, client_id, client_secret, activity_id, code
+    )
+    road_mesh = road_buffer(polyline, 1)
+    elevation_mesh = get_speckle_mesh_from_2d_route(all_locations_2d)
+    print("______getting buildings:")
+    buildings_meshes = get_buildings_mesh_from_2d_route(all_locations_2d)
+    buildings = Collection(elements=buildings_meshes)
+
+    final_object = Collection(elements=[road_mesh, elevation_mesh, buildings])
+    return final_object
+
+
+r"""
+result_send = generate_all_objects(client_id, client_secret, activity_id, code)
 ###############################################
 model_id = "ac5448ded3"
 project_id = "4ea6a03993"
@@ -124,7 +129,7 @@ client.authenticate_with_token(account.token)
 server_transport = ServerTransport(project_id, client)
 
 root_object_id = send(
-    Collection(elements=[road_mesh, elevation_mesh, buildings]),
+    result_send,
     [server_transport],
     use_default_cache=False,
 )
@@ -136,3 +141,4 @@ version_id = client.commit.create(
     message="route and colored elevation",
     source_application="SpeckleAutomate",
 )
+"""

@@ -10,7 +10,10 @@ from speckle_automate import (
     execute_automate_function,
 )
 
-from flatten import flatten_base
+from run import generate_all_objects
+
+RESULT_BRANCH = "strava_automate"
+
 
 class FunctionInputs(AutomateBase):
     """These are function author defined values.
@@ -20,12 +23,21 @@ class FunctionInputs(AutomateBase):
     https://docs.pydantic.dev/latest/usage/models/
     """
 
-    forbidden_speckle_type: str = Field(
-        title="Forbidden speckle type",
-        description=(
-            "If a object has the following speckle_type,"
-            " it will be marked with an error."
-        ),
+    client_id: str = Field(
+        title="Client ID",
+        description=(),
+    )
+    client_secret: str = Field(
+        title="Client Secret",
+        description=(),
+    )
+    activity_id: int = Field(
+        title="Activity ID",
+        description=(),
+    )
+    code: str = Field(
+        title="Code from the URL",
+        description=(),
     )
 
 
@@ -43,29 +55,37 @@ def automate_function(
         function_inputs: An instance object matching the defined schema.
     """
     # the context provides a conveniet way, to receive the triggering version
-    version_root_object = automate_context.receive_version()
+    try:
+        project_id = automate_context.automation_run_data.project_id
 
-    count = 0
-    for b in flatten_base(version_root_object):
-        if b.speckle_type == function_inputs.forbidden_speckle_type:
-            if not b.id:
-                raise ValueError("Cannot operate on objects without their id's.")
-            automate_context.add_object_error(
-                b.id,
-                "This project should not contain the type: " f"{b.speckle_type}",
-            )
-            count += 1
-
-    if count > 0:
-        # this is how a run is marked with a failure cause
-        automate_context.mark_run_failed(
-            "Automation failed: "
-            f"Found {count} object that have one of the forbidden speckle types: "
-            f"{function_inputs.forbidden_speckle_type}"
+        # create branch if needed
+        existing_branch = automate_context.speckle_client.branch.get(
+            project_id, RESULT_BRANCH, 1
         )
+        if existing_branch is None:
+            br_id = automate_context.speckle_client.branch.create(
+                stream_id=project_id, name=RESULT_BRANCH, description=""
+            )
+        else:
+            br_id = existing_branch.id
 
-    else:
+        client_id = function_inputs.client_id
+        client_secret = function_inputs.client_secret
+        activity_id = function_inputs.activity_id
+        code = function_inputs.code
+
+        commitObj = generate_all_objects(client_id, client_secret, activity_id, code)
+        automate_context.create_new_version_in_project(
+            commitObj, br_id, "Context from Automate"
+        )
+        print(
+            f"Created id={automate_context._automation_result.result_versions[len(automate_context._automation_result.result_versions)-1]}"
+        )
+        automate_context._automation_result.result_view = f"{automate_context.automation_run_data.speckle_server_url}/projects/{automate_context.automation_run_data.project_id}/models/{automate_context.automation_run_data.model_id}"
+
         automate_context.mark_run_success("No forbidden types found.")
+    except Exception as ex:
+        automate_context.mark_run_failed(f"Failed to create 3d context cause: {ex}")
 
     # if the function generates file results, this is how it can be
     # attached to the Speckle project / model
